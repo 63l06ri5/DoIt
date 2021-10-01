@@ -179,12 +179,17 @@ function initSearch() {
   const ignoreFieldNorm = searchConfig.ignoreFieldNorm
     ? searchConfig.ignoreFieldNorm
     : false;
+  const useWorker = searchConfig.useWorker ? searchConfig.useWorker : false;
+  const workerSearchThrothlePeriod = searchConfig.workerSearchThrothlePeriod
+    ? searchConfig.workerSearchThrothlePeriod
+    : 0;
   const suffix = isMobile ? "mobile" : "desktop";
   const $header = document.getElementById(`header-${suffix}`);
   const $searchInput = document.getElementById(`search-input-${suffix}`);
   const $searchToggle = document.getElementById(`search-toggle-${suffix}`);
   const $searchLoading = document.getElementById(`search-loading-${suffix}`);
   const $searchClear = document.getElementById(`search-clear-${suffix}`);
+  let $_clb_ = undefined;
   if (isMobile) {
     $searchInput.addEventListener(
       "focus",
@@ -277,10 +282,11 @@ function initSearch() {
         source: (query, callback) => {
           $searchLoading.style.display = "inline";
           $searchClear.style.display = "none";
+          $_clb_ = callback;
           const finish = (results) => {
             $searchLoading.style.display = "none";
             $searchClear.style.display = "inline";
-            callback(results);
+            $_clb_(results);
           };
           if (searchConfig.type === "lunr") {
             const search = () => {
@@ -400,59 +406,94 @@ function initSearch() {
               });
           } else if (searchConfig.type === "fuse") {
             const search = () => {
-              const results = {};
-              window._index
-                .search(query)
-                .forEach(({ item, refIndex, matches }) => {
-                  let title = item.title;
-                  let content = item.content;
-                  matches.forEach(({ indices, value, key }) => {
-                    if (key === "content") {
-                      let offset = 0;
-                      for (let i = 0; i < indices.length; i++) {
-                        let substr = content.substring(
-                          indices[i][0] + offset,
-                          indices[i][1] + 1 + offset
-                        );
-                        let tag =
-                          `<${highlightTag}>` + substr + `</${highlightTag}>`;
-                        content =
-                          content.substring(0, indices[i][0] + offset) +
-                          tag +
-                          content.substring(
-                            indices[i][1] + 1 + offset,
-                            content.length
-                          );
-                        offset += highlightTag.length * 2 + 5;
-                      }
-                    } else if (key === "title") {
-                      let offset = 0;
-                      for (let i = 0; i < indices.length; i++) {
-                        let substr = title.substring(
-                          indices[i][0] + offset,
-                          indices[i][1] + 1 + offset
-                        );
-                        let tag =
-                          `<${highlightTag}>` + substr + `</${highlightTag}>`;
-                        title =
-                          title.substring(0, indices[i][0] + offset) +
-                          tag +
-                          title.substring(
-                            indices[i][1] + 1 + offset,
-                            content.length
-                          );
-                        offset += highlightTag.length * 2 + 5;
-                      }
-                    }
-                  });
-                  results[item.uri] = {
-                    uri: item.uri,
-                    title: title,
-                    date: item.date,
-                    context: content,
-                  };
+              const results = [];
+              const rows = window._index.search(query);
+
+              if (rows.length > 0 && !!rows[0].matches) {
+                rows.forEach((x) => {
+                  x.matches.sort((a, b) => a.indices[0][2] - b.indices[0][2]);
                 });
-              return Object.values(results).slice(0, maxResultLength);
+
+                rows.sort((a, b) => {
+                  const res =
+                    a.matches[0].indices[0][2] - b.matches[0].indices[0][2];
+                  if (res === 0) {
+                    return a.score - b.score;
+                  }
+
+                  return res;
+                });
+              }
+
+              for (let i = 0; i < Math.min(rows.length, maxResultLength); i++) {
+                let { item, matches } = rows[i];
+                let title = item.title;
+                let content = item.content;
+                let minIndex = content.length;
+                matches.forEach(({ indices, key }) => {
+                  if (key === "content") {
+                    let offset = 0;
+                    if (indices[0][0] < minIndex) {
+                      minIndex = indices[0][0];
+                    }
+                    let lastLast = 0;
+                    for (let i = 0; i < indices.length; i++) {
+                      if (indices[i][0] < lastLast) {
+                        if (indices[i][1] > lastLast) {
+                          lastLast = indices[i][1];
+                        }
+                        continue;
+                      }
+                      lastLast = indices[i][1];
+
+                      let substr = content.substring(
+                        indices[i][0] + offset,
+                        indices[i][1] + 1 + offset
+                      );
+                      let tag =
+                        `<${highlightTag}>` + substr + `</${highlightTag}>`;
+                      content =
+                        content.substring(0, indices[i][0] + offset) +
+                        tag +
+                        content.substring(
+                          indices[i][1] + 1 + offset,
+                          content.length
+                        );
+                      offset += highlightTag.length * 2 + 5;
+                    }
+                  } else if (key === "title") {
+                    let offset = 0;
+                    for (let i = 0; i < indices.length; i++) {
+                      let substr = title.substring(
+                        indices[i][0] + offset,
+                        indices[i][1] + 1 + offset
+                      );
+                      let tag =
+                        `<${highlightTag}>` + substr + `</${highlightTag}>`;
+                      title =
+                        title.substring(0, indices[i][0] + offset) +
+                        tag +
+                        title.substring(
+                          indices[i][1] + 1 + offset,
+                          content.length
+                        );
+                      offset += highlightTag.length * 2 + 5;
+                    }
+                  }
+                });
+
+                if (minIndex > 19) {
+                  content = "..." + content.substr(minIndex - 15);
+                }
+
+                results.push({
+                  uri: item.uri,
+                  title: title,
+                  date: item.date,
+                  context: content,
+                });
+              }
+              return results;
             };
             if (!window._index) {
               fetch(searchConfig.fuseIndexURL)
@@ -473,14 +514,43 @@ function initSearch() {
                     includeMatches: true,
                     keys: ["content", "title"],
                   };
-                  window._index = new Fuse(data, options);
-                  finish(search());
+
+                  if (useWorker) {
+                    fuseWorker.postMessage({
+                      type: "init",
+                      data: {
+                        data,
+                        options,
+                        highlightTag,
+                        maxResultLength,
+                        workerSearchThrothlePeriod,
+                      },
+                    });
+
+                    fuseWorker.onmessage = (e) => {
+                      finish(e.data);
+                    };
+
+                    fuseWorker.postMessage({ type: "search", data: { query } });
+
+                    window._index = 1;
+                  } else {
+                    window._index = new Fuse(data, options);
+
+                    finish(search());
+                  }
                 })
                 .catch((err) => {
                   console.error(err);
                   finish([]);
                 });
-            } else finish(search());
+            } else {
+              if (useWorker) {
+                fuseWorker.postMessage({ type: "search", data: { query } });
+              } else {
+                finish(search());
+              }
+            }
           }
         },
         templates: {
@@ -979,40 +1049,40 @@ function initComment() {
       });
     }
     if (window.config.comment.remark42) {
-      let remark42 = window.config.comment.remark42;
-      var remark_config = {
-        host: remark42.host,
-        site_id: remark42.site_id,
-        components: ["embed"],
-        max_shown_comments: remark42.max_shown_comments,
-        theme: window.isDark ? "dark" : "light",
-        locale: remark42.locale,
-        show_email_subscription: remark42.show_email_subscription,
-        simple_view: remark42.simple_view,
-      };
-      window.remark_config = remark_config;
-      !(function (e, n) {
-        for (var o = 0; o < e.length; o++) {
-          var r = n.createElement("script"),
-            c = ".js",
-            d = n.head || n.body;
-          "noModule" in r
-            ? ((r.type = "module"), (c = ".mjs"))
-            : (r.async = !0),
-            (r.defer = !0),
-            (r.src = remark_config.host + "/web/" + e[o] + c),
-            d.appendChild(r);
-        }
-      })(remark_config.components || ["embed"], document);
-      window._remark42OnSwitchTheme = () => {
-        if (window.isDark) {
-          window.REMARK42.changeTheme("dark");
-        } else {
-          window.REMARK42.changeTheme("light");
-        }
-      };
-      window.switchThemeEventSet.add(window._remark42OnSwitchTheme);
-    }
+        let remark42 = window.config.comment.remark42;
+        var remark_config = {
+          host: remark42.host,
+          site_id: remark42.site_id,
+          components: ["embed"],
+          max_shown_comments: remark42.max_shown_comments,
+          theme: window.isDark ? "dark" : "light",
+          locale: remark42.locale,
+          show_email_subscription: remark42.show_email_subscription,
+          simple_view: remark42.simple_view,
+        };
+        window.remark_config = remark_config;
+        !(function (e, n) {
+          for (var o = 0; o < e.length; o++) {
+            var r = n.createElement("script"),
+              c = ".js",
+              d = n.head || n.body;
+            "noModule" in r
+              ? ((r.type = "module"), (c = ".mjs"))
+              : (r.async = !0),
+              (r.defer = !0),
+              (r.src = remark_config.host + "/web/" + e[o] + c),
+              d.appendChild(r);
+          }
+        })(remark_config.components || ["embed"], document);
+        window._remark42OnSwitchTheme = () => {
+          if (window.isDark) {
+            window.REMARK42.changeTheme("dark");
+          } else {
+            window.REMARK42.changeTheme("light");
+          }
+        };
+        window.switchThemeEventSet.add(window._remark42OnSwitchTheme);
+      }
   }
 }
 
@@ -1150,6 +1220,11 @@ function init() {
     window.clickMaskEventSet = new Set();
     window.pjaxSendEventSet = new Set();
     if (window.objectFitImages) objectFitImages();
+
+    if (window.config.search.useWorker && !window.fuseWorker) {
+      window.fuseWorker = new Worker("/js/fuseSearch.min.js");
+    }
+
     initSVGIcon();
     initTwemoji();
     initMenuMobile();

@@ -258,6 +258,10 @@ Please open the code block below to view the complete sample configuration :(far
       ignoreLocation = false
       useExtendedSearch = false
       ignoreFieldNorm = false
+      # use web worker for search
+      useWorker = true
+      # search function throthling, in ms
+      workerSearchThrothlePeriod = 100
   # Header config
   [params.header]
     # desktop header mode ("fixed", "normal", "auto")

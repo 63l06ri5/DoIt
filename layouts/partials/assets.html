@@ -33,7 +33,7 @@
         {{- end -}}
         {{- $source := $cdn.fuseJS | default "lib/fuse/fuse.min.js" -}}
         {{- dict "Source" $source "Fingerprint" $fingerprint | dict "Scratch" .Scratch "Data" | partial "scratch/script.html" -}}
-        {{- $config = dict "isCaseSensitive" $search.fuse.isCaseSensitive "minMatchCharLength" $search.fuse.minMatchCharLength "findAllMatches" $search.fuse.findAllMatches "location" $search.fuse.location "threshold" $search.fuse.threshold "distance" $search.fuse.distance "ignoreLocation" $search.fuse.ignoreLocation "useExtendedSearch" $search.fuse.useExtendedSearch "ignoreFieldNorm" $search.fuse.ignoreFieldNorm | dict "search" | merge $config -}}
+        {{- $config = dict "isCaseSensitive" $search.fuse.isCaseSensitive "minMatchCharLength" $search.fuse.minMatchCharLength "findAllMatches" $search.fuse.findAllMatches "location" $search.fuse.location "threshold" $search.fuse.threshold "distance" $search.fuse.distance "ignoreLocation" $search.fuse.ignoreLocation "useExtendedSearch" $search.fuse.useExtendedSearch "ignoreFieldNorm" $search.fuse.ignoreFieldNorm "useWorker" $search.fuse.useWorker "workerSearchThrothlePeriod" $search.fuse.workerSearchThrothlePeriod | dict "search" | merge $config -}}
     {{- end -}}
 {{- end -}}
 
@@ -208,6 +208,9 @@
 {{- /* Theme script */ -}}
 {{- dict "Source" "js/theme.min.js" "Fingerprint" $fingerprint | dict "Scratch" .Scratch "Data" | partial "scratch/script.html" -}}
 {{- $_ := (resources.Get "js/theme.min.js.map").RelPermalink -}}
+
+{{- dict "Source" "js/fuseSearch.min.js" "Fingerprint" $fingerprint | dict "Scratch" .Scratch "Data" | partial "scratch/script.html" -}}
+{{- $_ := (resources.Get "js/fuseSearch.min.js.map").RelPermalink -}}
 
 {{- with (.Scratch.Get "this").scriptArr -}}
 {{- delimit . "\n" | dict "Content" | dict "Scratch" $.Scratch "Data" | partial "scratch/pjaxScript.html" -}}
