@@ -1,3 +1,5 @@
+import { getSearch as getFuseSearch } from "./helpers";
+
 class Util {
   forEach(elements, handler) {
     elements = elements || [];
@@ -205,8 +207,8 @@ class Theme {
       ? searchConfig.ignoreFieldNorm
       : false;
     const useWorker = searchConfig.useWorker ? searchConfig.useWorker : false;
-    const workerSearchThrothlePeriod = searchConfig.workerSearchThrothlePeriod
-      ? searchConfig.workerSearchThrothlePeriod
+    const fuseSearchThrothlePeriod = searchConfig.fuseSearchThrothlePeriod
+      ? searchConfig.fuseSearchThrothlePeriod
       : 0;
 
     const suffix = isMobile ? "mobile" : "desktop";
@@ -217,6 +219,9 @@ class Theme {
     const $searchClear = document.getElementById(`search-clear-${suffix}`);
 
     let $_clb_ = undefined;
+    let fuseSearch = undefined;
+    let fuseSearchTimeout = undefined;
+
     if (isMobile) {
       this._searchMobileOnce = true;
       $searchInput.addEventListener(
@@ -318,6 +323,12 @@ class Theme {
               $searchLoading.style.display = "none";
               $searchClear.style.display = "inline";
               $_clb_(results);
+            };
+            const fuseSearchWithTimeout = (query) => {
+              clearTimeout(fuseSearchTimeout);
+              fuseSearchTimeout = setTimeout(() => {
+                finish(fuseSearch(query));
+              }, fuseSearchThrothlePeriod);
             };
             if (searchConfig.type === "lunr") {
               const search = () => {
@@ -436,101 +447,9 @@ class Theme {
                   finish([]);
                 });
             } else if (searchConfig.type === "fuse") {
-              const search = () => {
-                const results = [];
-                const rows = window._index.search(query);
-
-                if (rows.length > 0 && !!rows[0].matches) {
-                  rows.forEach((x) => {
-                    x.matches.sort((a, b) => a.indices[0][2] - b.indices[0][2]);
-                  });
-
-                  rows.sort((a, b) => {
-                    const res =
-                      a.matches[0].indices[0][2] - b.matches[0].indices[0][2];
-                    if (res === 0) {
-                      return a.score - b.score;
-                    }
-
-                    return res;
-                  });
-                }
-
-                for (
-                  let i = 0;
-                  i < Math.min(rows.length, maxResultLength);
-                  i++
-                ) {
-                  let { item, matches } = rows[i];
-                  let title = item.title;
-                  let content = item.content;
-                  let minIndex = content.length;
-                  matches.forEach(({ indices, key }) => {
-                    if (key === "content") {
-                      let offset = 0;
-                      if (indices[0][0] < minIndex) {
-                        minIndex = indices[0][0];
-                      }
-                      let lastLast = 0;
-                      for (let i = 0; i < indices.length; i++) {
-                        if (indices[i][0] < lastLast) {
-                          if (indices[i][1] > lastLast) {
-                            lastLast = indices[i][1];
-                          }
-                          continue;
-                        }
-                        lastLast = indices[i][1];
-
-                        let substr = content.substring(
-                          indices[i][0] + offset,
-                          indices[i][1] + 1 + offset
-                        );
-                        let tag =
-                          `<${highlightTag}>` + substr + `</${highlightTag}>`;
-                        content =
-                          content.substring(0, indices[i][0] + offset) +
-                          tag +
-                          content.substring(
-                            indices[i][1] + 1 + offset,
-                            content.length
-                          );
-                        offset += highlightTag.length * 2 + 5;
-                      }
-                    } else if (key === "title") {
-                      let offset = 0;
-                      for (let i = 0; i < indices.length; i++) {
-                        let substr = title.substring(
-                          indices[i][0] + offset,
-                          indices[i][1] + 1 + offset
-                        );
-                        let tag =
-                          `<${highlightTag}>` + substr + `</${highlightTag}>`;
-                        title =
-                          title.substring(0, indices[i][0] + offset) +
-                          tag +
-                          title.substring(
-                            indices[i][1] + 1 + offset,
-                            content.length
-                          );
-                        offset += highlightTag.length * 2 + 5;
-                      }
-                    }
-                  });
-
-                  if (minIndex > 19) {
-                    content = "..." + content.substr(minIndex - 15);
-                  }
-
-                  results.push({
-                    uri: item.uri,
-                    title: title,
-                    date: item.date,
-                    context: content,
-                  });
-                }
-                return results;
-              };
               if (!window._index) {
+                fuseSearch = getFuseSearch({ highlightTag, maxResultLength });
+
                 fetch(searchConfig.fuseIndexURL)
                   .then((response) => response.json())
                   .then((data) => {
@@ -558,7 +477,7 @@ class Theme {
                           options,
                           highlightTag,
                           maxResultLength,
-                          workerSearchThrothlePeriod,
+                          fuseSearchThrothlePeriod,
                         },
                       });
 
@@ -575,7 +494,8 @@ class Theme {
                     } else {
                       window._index = new Fuse(data, options);
 
-                      finish(search());
+                      // finish(fuseSearch(query));
+                      fuseSearchWithTimeout(query);
                     }
                   })
                   .catch((err) => {
@@ -586,7 +506,8 @@ class Theme {
                 if (useWorker) {
                   fuseWorker.postMessage({ type: "search", data: { query } });
                 } else {
-                  finish(search());
+                  // finish(fuseSearch(query));
+                  fuseSearchWithTimeout(query);
                 }
               }
             }
