@@ -30,59 +30,41 @@ export const getSearch = (
       let title = item.title;
       let content = item.content;
       let minIndex = content.length;
+
+      const toHighlight = (text, indices) => {
+        let offset = 0;
+        let lastLast = 0;
+        for (let i = 0; i < indices.length; i++) {
+          if (indices[i][0] < lastLast) {
+            if (indices[i][1] > lastLast) {
+              lastLast = indices[i][1];
+            }
+            continue;
+          }
+          lastLast = indices[i][1];
+
+          let substr = text.substring(
+            indices[i][0] + offset,
+            indices[i][1] + 1 + offset
+          );
+          let tag = `<${highlightTag}>` + substr + `</${highlightTag}>`;
+          text =
+            text.substring(0, indices[i][0] + offset) +
+            tag +
+            text.substring(indices[i][1] + 1 + offset, text.length);
+          offset += highlightTag.length * 2 + 5;
+        }
+        return text;
+      };
+
       matches.forEach(({ indices, key }) => {
         if (key === "content") {
-          let offset = 0;
           if (indices[0][0] < minIndex) {
             minIndex = indices[0][0];
           }
-          let lastLast = 0;
-          for (let i = 0; i < indices.length; i++) {
-            if (indices[i][0] < lastLast) {
-              if (indices[i][1] > lastLast) {
-                lastLast = indices[i][1];
-              }
-              continue;
-            }
-            lastLast = indices[i][1];
-
-            let substr = content.substring(
-              indices[i][0] + offset,
-              indices[i][1] + 1 + offset
-            );
-            let tag = `<${highlightTag}>` + substr + `</${highlightTag}>`;
-            content =
-              content.substring(0, indices[i][0] + offset) +
-              tag +
-              content.substring(indices[i][1] + 1 + offset, content.length);
-            offset += highlightTag.length * 2 + 5;
-          }
+          content = toHighlight(content, indices);
         } else if (key === "title") {
-          let offset = 0;
-          if (indices[0][0] < minIndex) {
-            minIndex = indices[0][0];
-          }
-          let lastLast = 0;
-          for (let i = 0; i < indices.length; i++) {
-            if (indices[i][0] < lastLast) {
-              if (indices[i][1] > lastLast) {
-                lastLast = indices[i][1];
-              }
-              continue;
-            }
-            lastLast = indices[i][1];
-
-            let substr = title.substring(
-              indices[i][0] + offset,
-              indices[i][1] + 1 + offset
-            );
-            let tag = `<${highlightTag}>` + substr + `</${highlightTag}>`;
-            title =
-              title.substring(0, indices[i][0] + offset) +
-              tag +
-              title.substring(indices[i][1] + 1 + offset, content.length);
-            offset += highlightTag.length * 2 + 5;
-          }
+          title = toHighlight(title, indices);
         }
       });
 
