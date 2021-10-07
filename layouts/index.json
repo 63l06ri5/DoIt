@@ -27,19 +27,25 @@
             {{- if gt $i 0 -}}
                 {{- $contenti = printf "<h2 id=%v" $contenti -}}
             {{- end -}}
-            {{- range $j, $contentj := split $contenti "<h3 id=" -}}
+            {{- range $j, $contentja := split $contenti "<h3 id=" -}}
                 {{- if gt $j 0 -}}
-                    {{- $contentj = printf "<h3 id=%v" $contentj -}}
+                    {{- $contentja = printf "<h3 id=%v" $contentja -}}
                 {{- end -}}
-                {{/* Plainify, unescape and remove (\n, \t) */}}
-                {{- $contentj = $contentj | plainify | replaceRE `[\n\t ]+` " " -}}
-                {{- if gt $.Site.Params.search.contentLength 0 -}}
-                    {{- $contentj = substr $contentj 0 $.Site.Params.search.contentLength -}}
-                {{- end -}}
-                {{- if $contentj | and (ne $contentj " ") -}}
-                    {{- $one := printf "%v:%v:%v" $uri $i $j | dict "content" $contentj "uri" $urianchor "objectID" | merge $meta -}}
-                    {{- $index = $index | append $one -}}
-                {{- end -}}
+                {{- range $y, $contentjb := split $contentja "<p>" -}}
+                    {{- if gt $y 0 -}}
+                        {{- $contentjb = printf "<p>%v" $contentjb -}}
+                    {{- end -}}
+                        {{- $urianchorb := printf "%v-%v" $urianchor $y -}}        
+                        {{/* Plainify, unescape and remove (\n, \t) */}}
+                        {{- $contentjb = $contentjb | plainify | replaceRE `[\n\t ]+` " " -}}
+                        {{- if gt $.Site.Params.search.contentLength 0 -}}
+                            {{- $contentjb = substr $contentjb 0 $.Site.Params.search.contentLength -}}
+                        {{- end -}}
+                        {{- if $contentjb | and (ne $contentjb " ") -}}
+                            {{- $one := printf "%v:%v:%v:%v" $uri $i $j $y | dict "content" $contentjb "uri" $urianchorb "objectID" | merge $meta -}}
+                            {{- $index = $index | append $one -}}
+                        {{- end -}}
+                    {{- end -}}
             {{- end -}}
         {{- end -}}
     {{- end -}}

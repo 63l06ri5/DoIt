@@ -698,10 +698,18 @@ class Theme {
         document.querySelectorAll(".single .content > h" + num),
         ($header) => {
           $header.classList.add("headerLink");
+          const headerID = $header.id;
           $header.insertAdjacentHTML(
             "afterbegin",
-            `<a href="#${$header.id}" class="header-mark"></a>`
+            `<a href="#${headerID}" class="header-mark"></a>`
           );
+          const ps = document.querySelectorAll(
+            `#${headerID}~p:not(#${headerID}~h2~p), #${headerID} ~ * p:not(#${headerID}~h2 ~ * p)`
+          );
+          ps.forEach((p, pi) => {
+            p.id = `${headerID}-${pi + 1}`;
+            p.classList.add("headerLink");
+          });
         }
       );
     }
@@ -782,6 +790,7 @@ class Theme {
             }
           }
           if (activeTocIndex !== -1) {
+            if (!$tocLinkElements[activeTocIndex]) return;
             $tocLinkElements[activeTocIndex].classList.add("active");
             let $parent = $tocLinkElements[activeTocIndex].parentElement;
             while ($parent !== $tocCore) {
@@ -1099,7 +1108,7 @@ class Theme {
           }
           $fixedButtons.style.display = "none";
         }
-        for (let event of this.scrollEventSet) event();
+        for (let event of this.scrollEventSet) if (!!event.call) event();
         this.oldScrollTop = this.newScrollTop;
       },
       false
