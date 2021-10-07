@@ -32,7 +32,7 @@
                     {{- $contentj = printf "<h3 id=%v" $contentj -}}
                 {{- end -}}
                 {{/* Plainify, unescape and remove (\n, \t) */}}
-                {{- $contentj = $contentj | plainify | htmlUnescape | replaceRE `[\n\t ]+` " " -}}
+                {{- $contentj = $contentj | plainify | replaceRE `[\n\t ]+` " " -}}
                 {{- if gt $.Site.Params.search.contentLength 0 -}}
                     {{- $contentj = substr $contentj 0 $.Site.Params.search.contentLength -}}
                 {{- end -}}
