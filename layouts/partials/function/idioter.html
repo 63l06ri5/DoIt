@@ -1,0 +1,43 @@
+{{/* add ids to ps  */}}
+
+{{- $content := . -}}
+{{- $trueContent := "" -}}
+
+{{- if ne "" $content -}}
+    {{- range $i, $contenth1 := split $content "<h1 id=" -}}
+        {{- $anchorh1 := ""}}
+        {{- if gt $i 0 -}}
+            {{- $anchorh1 = index (findRE "^\"([^\"]+)\"" $contenth1 1) 0 -}}
+            {{- $anchorh1 = replace $anchorh1 "\"" "" -}}
+            {{- $contenth1 = printf "<h2 id=%v" $contenth1 -}}
+        {{- end -}}
+        {{- range $i, $contenth2 := split $content "<h2 id=" -}}
+            {{- $anchorh2 := ""}}
+            {{- if gt $i 0 -}}
+                {{- $anchorh2 = index (findRE "^\"([^\"]+)\"" $contenth2 1) 0 -}}
+                {{- $anchorh2 = replace $anchorh2 "\"" "" -}}
+                {{- $contenth2 = printf "<h2 id=%v" $contenth2 -}}
+            {{- end -}}
+            {{- range $j, $contenth3 := split $contenth2 "<h3 id=" -}}
+                {{- $anchorh3 := ""}}
+                {{- if gt $j 0 -}}
+                    {{- $anchorh3 = index (findRE "^\"([^\"]+)\"" $contenth3 1) 0 -}}
+                    {{- $anchorh3 = replace $anchorh3 "\"" "" -}}
+                    {{- $contenth3 = printf "<h3 id=%v" $contenth3 -}}
+                {{- end -}}
+                {{- range $p, $contentp := split $contenth3 "<p>" -}}
+                    {{- if gt $p 0 -}}
+                        {{- $contentp = printf "<p id=\"%v-%v-%v-%v\" class=\"headerLink\">%v" $anchorh1 $anchorh2 $anchorh3 $p $contentp -}}
+                    {{- end -}}
+                    {{- $trueContent = printf "%v%v" $trueContent $contentp -}}
+                {{- end -}}
+            {{- end -}}
+        {{- end -}}
+    {{- end -}}
+{{- else -}}
+  {{- $trueContent = $content  -}}                      
+{{- end -}}
+
+{{- return $trueContent -}}
+
+

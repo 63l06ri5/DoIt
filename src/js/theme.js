@@ -698,18 +698,10 @@ class Theme {
         document.querySelectorAll(".single .content > h" + num),
         ($header) => {
           $header.classList.add("headerLink");
-          const headerID = $header.id;
           $header.insertAdjacentHTML(
             "afterbegin",
-            `<a href="#${headerID}" class="header-mark"></a>`
+            `<a href="#${$header.id}" class="header-mark"></a>`
           );
-          const ps = document.querySelectorAll(
-            `#${headerID}~p:not(#${headerID}~h2~p), #${headerID} ~ * p:not(#${headerID}~h2 ~ * p)`
-          );
-          ps.forEach((p, pi) => {
-            p.id = `${headerID}-${pi + 1}`;
-            p.classList.add("headerLink");
-          });
         }
       );
     }
