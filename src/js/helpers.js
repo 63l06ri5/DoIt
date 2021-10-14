@@ -30,9 +30,10 @@ export const getSearch = (
       let title = item.title;
       let content = item.content;
       let minIndex = content.length;
+      let offsetContent = 0;
+      let offsetTitle = 0;
 
-      const toHighlight = (text, indices) => {
-        let offset = 0;
+      const toHighlight = (text, indices, offset) => {
         let lastLast = 0;
         for (let i = 0; i < indices.length; i++) {
           if (indices[i][0] < lastLast) {
@@ -54,7 +55,7 @@ export const getSearch = (
             text.substring(indices[i][1] + 1 + offset, text.length);
           offset += highlightTag.length * 2 + 5;
         }
-        return text;
+        return [text, offset];
       };
 
       matches.forEach(({ indices, key }) => {
@@ -62,9 +63,13 @@ export const getSearch = (
           if (indices[0][0] < minIndex) {
             minIndex = indices[0][0];
           }
-          content = toHighlight(content, indices);
+          [content, offsetContent] = toHighlight(
+            content,
+            indices,
+            offsetContent
+          );
         } else if (key === "title") {
-          title = toHighlight(title, indices);
+          [title, offsetTitle] = toHighlight(title, indices, offsetTitle);
         }
       });
 
