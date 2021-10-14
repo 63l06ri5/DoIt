@@ -33,8 +33,16 @@
                 {{- $contenti = substr $contenti 0 $.Site.Params.search.contentLength -}}
             {{- end -}}
             {{- if $contenti | and (ne $contenti " ") -}}
-                {{- $one := printf "%v:%v" $uri $i | dict "content" $contenti "uri" $urianchor "objectID" | merge $meta -}}
-                {{- $index = $index | append $one -}}
+                {{- $count := 0 -}}
+                {{- $slices := add (div (len $contenti) 1000) 1 -}}
+                {{- range $num := (seq $slices ) -}}
+                    {{- $contentis := substr $contenti $count 1000 -}}
+                    {{- if $contenti -}}
+                        {{- $count = add $count 1000 -}}
+                        {{- $one := printf "%v:%v:%v" $uri $i $count | dict "content" $contentis "uri" $urianchor "objectID" | merge $meta -}}
+                        {{- $index = $index | append $one -}}
+                        {{- end -}}
+                {{- end -}}
             {{- end -}}
         {{- end -}}
     {{- end -}}
