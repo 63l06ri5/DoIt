@@ -302,6 +302,17 @@ class Theme {
       false
     );
 
+    $searchInput.addEventListener(
+      "blur",
+      () => {
+        $header.classList.remove("open");
+        document.body.classList.remove("blur");
+        $searchLoading.style.display = "none";
+        $searchClear.style.display = "none";
+      },
+      false
+    );
+
     const initAutosearch = () => {
       const autosearch = autocomplete(
         `#search-input-${suffix}`,
